@@ -1,4 +1,4 @@
 # virajshoor.com
 
 
-This is a site Created For Experiments And Fun
+This is a site created for experiments and fun
