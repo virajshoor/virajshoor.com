@@ -1,0 +1,4041 @@
+                    text: `This is a preview of the dataset "${dataset.name}". The full content would be displayed here in a real application.`
+                };
+                
+                // Update dataset name field
+                document.getElementById('dataset-name').value = dataset.name;
+                
+                // Update dataset description field
+                document.getElementById('dataset-description').value = dataset.description || '';
+                
+                // Update dataset type radio
+                document.querySelectorAll('input[name="dataset-type"]').forEach(radio => {
+                    radio.checked = radio.value === dataset.type;
+                });
+                
+                // Update active tags
+                this.state.activeTags = [...dataset.tags];
+                
+                // Navigate to upload section
+                this.navigateTo('upload');
+                
+                // Go to analysis step
+                this.goToUploadStep('analyze');
+                
+                // Hide loading view, show results
+                document.getElementById('loading-view').classList.add('hidden');
+                document.getElementById('results-view').classList.remove('hidden');
+                
+                // Display results
+                this.displayAnalysisResults();
+                
+                // Show toast
+                this.showToast('Dataset loaded successfully', 'success');
+            },
+            
+            // Delete dataset
+            deleteDataset(id) {
+                this.showConfirmationModal(
+                    'Delete Dataset',
+                    'Are you sure you want to delete this dataset? This action cannot be undone.',
+                    () => {
+                        // Remove from datasets
+                        this.state.datasets = this.state.datasets.filter(ds => ds.id !== id);
+                        
+                        // Remove from selection if selected
+                        this.state.selectedDatasets = this.state.selectedDatasets.filter(dsId => dsId !== id);
+                        
+                        // Save user data
+                        this.saveUserData();
+                        
+                        // Update UI
+                        this.renderDatasets();
+                        this.updateBulkActionBar();
+                        
+                        // Close modal
+                        this.closeModal();
+                        
+                        // Show toast
+                        this.showToast('Dataset deleted successfully', 'success');
+                    }
+                );
+            },
+            
+            // Show export dataset modal
+            showExportDatasetModal(id) {
+                const dataset = this.state.datasets.find(ds => ds.id === id);
+                if (!dataset) return;
+                
+                const content = `
+                    <h4>Export "${dataset.name}"</h4>
+                    <p>Choose an export format:</p>
+                    <div class="export-options">
+                        <div class="export-option" data-format="markdown" data-id="${id}">
+                            <div class="export-option-icon">📄</div>
+                            <div class="export-option-label">Markdown</div>
+                        </div>
+                        <div class="export-option" data-format="csv" data-id="${id}">
+                            <div class="export-option-icon">📊</div>
+                            <div class="export-option-label">CSV</div>
+                        </div>
+                        <div class="export-option" data-format="json" data-id="${id}">
+                            <div class="export-option-icon">🔢</div>
+                            <div class="export-option-label">JSON</div>
+                        </div>
+                        <div class="export-option" data-format="pdf" data-id="${id}">
+                            <div class="export-option-icon">📑</div>
+                            <div class="export-option-label">PDF</div>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.875rem; color: var(--light-text); margin-top: 1rem;">
+                        In this demo, selecting an export format will simulate the export process.
+                    </p>
+                `;
+                
+                this.showModal('Export Dataset', content);
+                
+                // Add event listeners to export options
+                setTimeout(() => {
+                    document.querySelectorAll('.export-option').forEach(option => {
+                        option.addEventListener('click', () => {
+                            const format = option.dataset.format;
+                            const datasetId = option.dataset.id;
+                            this.exportDataset(datasetId, format);
+                            this.closeModal();
+                        });
+                    });
+                }, 0);
+            },
+            
+            // Export dataset
+            exportDataset(id, format) {
+                const dataset = this.state.datasets.find(ds => ds.id === id);
+                if (!dataset) return;
+                
+                // In a real app, this would generate the export file
+                // For demo, just show a toast
+                
+                this.showToast(`Dataset "${dataset.name}" would be exported as ${format.toUpperCase()} in a real application`, 'success');
+            },
+            
+            // Export results
+            exportResults(format) {
+                if (!this.state.analysisResults) {
+                    this.showToast('No analysis results to export', 'error');
+                    return;
+                }
+                
+                // In a real app, this would generate the export file
+                // For demo, just show a toast
+                
+                const name = document.getElementById('dataset-name').value || 'analysis';
+                
+                this.showToast(`Analysis results for "${name}" would be exported as ${format.toUpperCase()} in a real application`, 'success');
+            },
+            
+            // Export all data
+            exportAllData() {
+                // In a real app, this would generate a full export of all user data
+                // For demo, just show a toast
+                
+                this.showToast('All user data would be exported in a real application', 'success');
+            },
+            
+            // Clear all data
+            clearAllData() {
+                // Clear datasets
+                this.state.datasets = [];
+                
+                // Clear selected datasets
+                this.state.selectedDatasets = [];
+                
+                // Reset usage count
+                this.state.usageCount = 0;
+                this.state.lastUsageReset = new Date();
+                
+                // Save user data (empty)
+                this.saveUserData();
+                
+                // Update UI
+                this.renderDatasets();
+                this.updateBulkActionBar();
+                document.getElementById('usage-count').textContent = '0';
+                
+                // Update storage usage
+                this.updateStorageUsage();
+                
+                // Close modal
+                this.closeModal();
+                
+                // Show toast
+                this.showToast('All data cleared successfully', 'success');
+            },
+            
+            // Render datasets selection for compare page
+            renderDatasetsSelection() {
+                const container = document.getElementById('datasets-selection');
+                if (!container) return;
+                
+                container.innerHTML = '';
+                
+                if (this.state.datasets.length === 0) {
+                    container.innerHTML = `
+                        <p>No datasets available for comparison. Upload some datasets first.</p>
+                    `;
+                    return;
+                }
+                
+                // Create checkboxes for each dataset
+                this.state.datasets.forEach(dataset => {
+                    const item = document.createElement('div');
+                    item.style.marginBottom = '0.5rem';
+                    
+                    // Type icon
+                    let typeIcon = '📄';
+                    if (dataset.type === 'csv') typeIcon = '📊';
+                    if (dataset.type === 'json') typeIcon = '🔢';
+                    
+                    item.innerHTML = `
+                        <label style="display: flex; align-items: center;">
+                            <input type="checkbox" class="compare-dataset-checkbox" data-id="${dataset.id}" 
+                                ${this.state.compareDatasets.includes(dataset.id) ? 'checked' : ''}>
+                            <span style="margin-left: 0.5rem;">${typeIcon} ${dataset.name}</span>
+                        </label>
+                    `;
+                    
+                    container.appendChild(item);
+                });
+                
+                // Add event listeners
+                container.querySelectorAll('.compare-dataset-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', (e) => {
+                        const datasetId = e.target.dataset.id;
+                        
+                        if (e.target.checked) {
+                            // Add to selection (max 3)
+                            if (this.state.compareDatasets.length < 3) {
+                                this.state.compareDatasets.push(datasetId);
+                            } else {
+                                e.target.checked = false;
+                                this.showToast('You can compare up to 3 datasets at a time', 'info');
+                            }
+                        } else {
+                            // Remove from selection
+                            this.state.compareDatasets = this.state.compareDatasets.filter(id => id !== datasetId);
+                        }
+                        
+                        // Enable/disable run button
+                        document.getElementById('run-comparison-btn').disabled = this.state.compareDatasets.length < 2;
+                    });
+                });
+                
+                // Enable/disable run button
+                document.getElementById('run-comparison-btn').disabled = this.state.compareDatasets.length < 2;
+            },
+            
+            // Run comparison
+            runComparison() {
+                if (this.state.compareDatasets.length < 2) {
+                    this.showToast('Select at least 2 datasets to compare', 'error');
+                    return;
+                }
+                
+                // Get selected datasets
+                const datasets = this.state.datasets.filter(ds => this.state.compareDatasets.includes(ds.id));
+                
+                // Get selected metrics
+                const metrics = {
+                    length: document.getElementById('compare-length').checked,
+                    sentiment: document.getElementById('compare-sentiment').checked,
+                    keywords: document.getElementById('compare-keywords').checked,
+                    readability: document.getElementById('compare-readability').checked,
+                    similarity: document.getElementById('compare-similarity').checked
+                };
+                
+                // Generate comparison results
+                const resultsContainer = document.getElementById('comparison-results');
+                resultsContainer.classList.remove('hidden');
+                resultsContainer.innerHTML = `
+                    <h3 style="margin-top: 1.5rem;">Comparison Results</h3>
+                `;
+                
+                // Length & Size comparison
+                if (metrics.length) {
+                    const lengthSection = document.createElement('div');
+                    lengthSection.className = 'result-section';
+                    lengthSection.innerHTML = `
+                        <h4>Length & Size Comparison</h4>
+                        <div class="chart-container">
+                            <canvas id="length-comparison-chart"></canvas>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(lengthSection);
+                    
+                    // Render chart after DOM update
+                    setTimeout(() => {
+                        const ctx = document.getElementById('length-comparison-chart').getContext('2d');
+                        
+                        const chartData = {
+                            labels: datasets.map(ds => ds.name),
+                            datasets: [
+                                {
+                                    label: 'Word Count',
+                                    data: datasets.map(ds => ds.stats.wordCount || 0),
+                                    backgroundColor: 'rgba(66, 133, 244, 0.7)',
+                                    borderColor: 'rgba(66, 133, 244, 1)',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Size (MB)',
+                                    data: datasets.map(ds => parseFloat(ds.size) || 0),
+                                    backgroundColor: 'rgba(52, 168, 83, 0.7)',
+                                    borderColor: 'rgba(52, 168, 83, 1)',
+                                    borderWidth: 1
+                                }
+                            ]
+                        };
+                        
+                        const chartConfig = {
+                            type: 'bar',
+                            data: chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }
+                        };
+                        
+                        new Chart(ctx, chartConfig);
+                    }, 0);
+                }
+                
+                // Sentiment comparison
+                if (metrics.sentiment) {
+                    const sentimentSection = document.createElement('div');
+                    sentimentSection.className = 'result-section';
+                    sentimentSection.innerHTML = `
+                        <h4>Sentiment Analysis Comparison</h4>
+                        <div class="chart-container">
+                            <canvas id="sentiment-comparison-chart"></canvas>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(sentimentSection);
+                    
+                    // Render chart after DOM update
+                    setTimeout(() => {
+                        const ctx = document.getElementById('sentiment-comparison-chart').getContext('2d');
+                        
+                        // Generate random sentiment scores if not available
+                        const sentimentData = datasets.map(ds => {
+                            const sentimentScore = ds.stats.sentimentScore || 0;
+                            
+                            let positive = 0.33, neutral = 0.34, negative = 0.33;
+                            
+                            if (sentimentScore > 0.2) {
+                                positive = 0.6; neutral = 0.3; negative = 0.1;
+                            } else if (sentimentScore < -0.2) {
+                                positive = 0.1; neutral = 0.3; negative = 0.6;
+                            }
+                            
+                            return { positive, neutral, negative };
+                        });
+                        
+                        const chartData = {
+                            labels: datasets.map(ds => ds.name),
+                            datasets: [
+                                {
+                                    label: 'Positive',
+                                    data: sentimentData.map(s => s.positive * 100),
+                                    backgroundColor: 'rgba(52, 168, 83, 0.7)'
+                                },
+                                {
+                                    label: 'Neutral',
+                                    data: sentimentData.map(s => s.neutral * 100),
+                                    backgroundColor: 'rgba(251, 188, 5, 0.7)'
+                                },
+                                {
+                                    label: 'Negative',
+                                    data: sentimentData.map(s => s.negative * 100),
+                                    backgroundColor: 'rgba(234, 67, 53, 0.7)'
+                                }
+                            ]
+                        };
+                        
+                        const chartConfig = {
+                            type: 'bar',
+                            data: chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: {
+                                        stacked: true
+                                    },
+                                    y: {
+                                        stacked: true,
+                                        beginAtZero: true,
+                                        max: 100
+                                    }
+                                }
+                            }
+                        };
+                        
+                        new Chart(ctx, chartConfig);
+                    }, 0);
+                }
+                
+                // Keywords comparison
+                if (metrics.keywords) {
+                    const keywordsSection = document.createElement('div');
+                    keywordsSection.className = 'result-section';
+                    keywordsSection.innerHTML = `
+                        <h4>Keywords Comparison</h4>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Dataset</th>
+                                        <th>Top Keywords</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${datasets.map(ds => `
+                                        <tr>
+                                            <td>${ds.name}</td>
+                                            <td>${(ds.stats.keywords || []).join(', ')}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(keywordsSection);
+                }
+                
+                // Readability comparison
+                if (metrics.readability) {
+                    const readabilitySection = document.createElement('div');
+                    readabilitySection.className = 'result-section';
+                    readabilitySection.innerHTML = `
+                        <h4>Readability Comparison</h4>
+                        <div class="chart-container">
+                            <canvas id="readability-comparison-chart"></canvas>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(readabilitySection);
+                    
+                    // Render chart after DOM update
+                    setTimeout(() => {
+                        const ctx = document.getElementById('readability-comparison-chart').getContext('2d');
+                        
+                        // Generate random readability scores (0-100)
+                        const readabilityScores = datasets.map(ds => Math.floor(Math.random() * 40) + 60);
+                        
+                        const chartData = {
+                            labels: datasets.map(ds => ds.name),
+                            datasets: [{
+                                label: 'Readability Score',
+                                data: readabilityScores,
+                                backgroundColor: 'rgba(66, 133, 244, 0.7)',
+                                borderColor: 'rgba(66, 133, 244, 1)',
+                                borderWidth: 1
+                            }]
+                        };
+                        
+                        const chartConfig = {
+                            type: 'bar',
+                            data: chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        max: 100
+                                    }
+                                }
+                            }
+                        };
+                        
+                        new Chart(ctx, chartConfig);
+                    }, 0);
+                }
+                
+                // Similarity comparison
+                if (metrics.similarity) {
+                    const similaritySection = document.createElement('div');
+                    similaritySection.className = 'result-section';
+                    
+                    // For each pair of datasets, generate a similarity score
+                    let similarityHtml = '<h4>Text Similarity</h4>';
+                    
+                    // Create similarity matrix
+                    similarityHtml += `
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Dataset Pair</th>
+                                        <th>Similarity Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    // Generate pairs
+                    for (let i = 0; i < datasets.length; i++) {
+                        for (let j = i + 1; j < datasets.length; j++) {
+                            const score = (Math.random() * 50 + 30).toFixed(1); // 30-80%
+                            similarityHtml += `
+                                <tr>
+                                    <td>${datasets[i].name} & ${datasets[j].name}</td>
+                                    <td>${score}%</td>
+                                </tr>
+                            `;
+                        }
+                    }
+                    
+                    similarityHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    
+                    similaritySection.innerHTML = similarityHtml;
+                    resultsContainer.appendChild(similaritySection);
+                }
+                
+                // Add note
+                const noteSection = document.createElement('div');
+                noteSection.innerHTML = `
+                    <p style="font-size: 0.875rem; color: var(--light-text); margin-top: 1rem;">
+                        Note: In a full application, these comparisons would be based on the actual content of the datasets.
+                    </p>
+                `;
+                resultsContainer.appendChild(noteSection);
+                
+                // Scroll to results
+                resultsContainer.scrollIntoView({ behavior: 'smooth' });
+                
+                // Show toast
+                this.showToast('Comparison completed successfully', 'success');
+            },
+            
+            // Start tutorial
+            startTutorial() {
+                this.state.tutorialActive = true;
+                this.state.tutorialStep = 0;
+                
+                // Show tutorial container
+                document.getElementById('tutorial-container').classList.remove('hidden');
+                
+                // Display first step
+                this.displayTutorialStep();
+                
+                // Make sure we're on dashboard for tutorial
+                if (this.state.currentSection !== 'dashboard') {
+                    this.navigateTo('dashboard');
+                }
+            },
+            
+            // Display tutorial step
+            displayTutorialStep() {
+                const step = this.state.tutorialSteps[this.state.tutorialStep];
+                if (!step) return;
+                
+                // Update tooltip content
+                document.getElementById('tutorial-title').textContent = step.title;
+                document.getElementById('tutorial-description').textContent = step.description;
+                
+                // Position tooltip
+                const tooltip = document.getElementById('tutorial-tooltip');
+                
+                if (step.element) {
+                    // Get element to highlight
+                    const element = document.querySelector(step.element);
+                    if (!element) return;
+                    
+                    // Add highlight class
+                    element.classList.add('tutorial-highlight');
+                    
+                    // Position tooltip near element
+                    const rect = element.getBoundingClientRect();
+                    
+                    switch (step.position) {
+                        case 'top':
+                            tooltip.style.top = `${rect.top - tooltip.offsetHeight - 10}px`;
+                            tooltip.style.left = `${rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2)}px`;
+                            break;
+                        case 'bottom':
+                            tooltip.style.top = `${rect.bottom + 10}px`;
+                            tooltip.style.left = `${rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2)}px`;
+                            break;
+                        case 'left':
+                            tooltip.style.top = `${rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2)}px`;
+                            tooltip.style.left = `${rect.left - tooltip.offsetWidth - 10}px`;
+                            break;
+                        case 'right':
+                            tooltip.style.top = `${rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2)}px`;
+                            tooltip.style.left = `${rect.right + 10}px`;
+                            break;
+                    }
+                } else {
+                    // Center tooltip for steps with no element
+                    tooltip.style.top = '50%';
+                    tooltip.style.left = '50%';
+                    tooltip.style.transform = 'translate(-50%, -50%)';
+                }
+                
+                // Update buttons
+                const skipBtn = document.getElementById('tutorial-skip');
+                const nextBtn = document.getElementById('tutorial-next');
+                
+                // Change text for last step
+                if (this.state.tutorialStep === this.state.tutorialSteps.length - 1) {
+                    nextBtn.textContent = 'Finish';
+                } else {
+                    nextBtn.textContent = 'Next';
+                }
+            },
+            
+            // Next tutorial step
+            nextTutorialStep() {
+                // Remove highlight from current element
+                const currentStep = this.state.tutorialSteps[this.state.tutorialStep];
+                if (currentStep && currentStep.element) {
+                    const element = document.querySelector(currentStep.element);
+                    if (element) {
+                        element.classList.remove('tutorial-highlight');
+                    }
+                }
+                
+                this.state.tutorialStep++;
+                
+                // If we're at the end, end tutorial
+                if (this.state.tutorialStep >= this.state.tutorialSteps.length) {
+                    this.endTutorial();
+                    return;
+                }
+                
+                // Display next step
+                this.displayTutorialStep();
+            },
+            
+            // End tutorial
+            endTutorial() {
+                this.state.tutorialActive = false;
+                
+                // Hide tutorial container
+                document.getElementById('tutorial-container').classList.add('hidden');
+                
+                // Remove any highlights
+                document.querySelectorAll('.tutorial-highlight').forEach(el => {
+                    el.classList.remove('tutorial-highlight');
+                });
+                
+                // Show toast
+                this.showToast('Tutorial completed. You can restart it anytime from Settings.', 'info');
+                
+                // Store that tutorial has been shown
+                localStorage.setItem('tutorialShown', 'true');
+            },
+            
+            // Login user
+            login(email, password) {
+                // In a real app, this would validate credentials with a server
+                // For demo purposes, we're just checking if the email contains "@"
+                if (email.includes('@')) {
+                    this.state.user = {
+                        email: email,
+                        displayName: email.split('@')[0],
+                        lastLogin: new Date()
+                    };
+                    
+                    this.state.isAuthenticated = true;
+                    
+                    // Save user to localStorage
+                    localStorage.setItem('user', JSON.stringify(this.state.user));
+                    
+                    // Load user data
+                    this.loadUserData();
+                    
+                    // Show dashboard
+                    this.navigateTo('dashboard');
+                    
+                    // Show toast
+                    this.showToast('You are now logged in', 'success');
+                    
+                    // Update UI
+                    this.updateUI();
+                } else {
+                    document.getElementById('login-error').textContent = 'Invalid email format';
+                }
+            },
+            
+            // Register user
+            register(email, password) {
+                // In a real app, this would create a new user on the server
+                // For demo purposes, we're just creating a local user
+                this.state.user = {
+                    email: email,
+                    displayName: email.split('@')[0],
+                    lastLogin: new Date(),
+                    dateRegistered: new Date()
+                };
+                
+                this.state.isAuthenticated = true;
+                
+                // Save user to localStorage
+                localStorage.setItem('user', JSON.stringify(this.state.user));
+                
+                // Initialize user data
+                this.state.datasets = [];
+                this.state.usageCount = 0;
+                this.state.lastUsageReset = new Date();
+                
+                // Save user data
+                this.saveUserData();
+                
+                // Show dashboard
+                this.navigateTo('dashboard');
+                
+                // Show toast
+                this.showToast('Account created successfully', 'success');
+                
+                // Update UI
+                this.updateUI();
+                
+                // Suggest tutorial
+                setTimeout(() => {
+                    this.showToast('Would you like a tutorial? Click Settings > Tutorial', 'info', 5000);
+                }, 2000);
+            },
+            
+            // Enter demo mode
+            enterDemoMode() {
+                // Create a demo user
+                this.state.user = {
+                    email: 'demo@example.com',
+                    displayName: 'Demo User',
+                    lastLogin: new Date()
+                };
+                
+                this.state.isAuthenticated = true;
+                this.state.demoMode = true;
+                
+                // Load sample datasets
+                this.loadSampleData();
+                
+                // Show dashboard
+                this.navigateTo('dashboard');
+                
+                // Show toast
+                this.showToast('You are now in demo mode', 'info');
+                
+                // Update UI
+                this.updateUI();
+                
+                // Start tutorial automatically after a delay
+                setTimeout(() => {
+                    this.startTutorial();
+                }, 1000);
+            },
+            
+            // Load sample data for demo mode
+            loadSampleData() {
+                // Reset state first
+                this.state.datasets = [];
+                this.state.usageCount = 5;
+                this.state.lastUsageReset = new Date();
+                
+                // Add sample datasets
+                this.state.datasets = [
+                    {
+                        id: 'sample-1',
+                        name: 'Climate Change Research Abstract',
+                        description: 'Research abstract analyzing climate change trends and policy implications',
+                        type: 'text',
+                        date: new Date(2023, 2, 15),
+                        size: 4.3,
+                        tags: ['climate', 'research', 'policy'],
+                        stats: {
+                            wordCount: 487,
+                            sentimentScore: 0.2,
+                            entities: {
+                                locations: 5,
+                                organizations: 3,
+                                people: 2,
+                                dates: 7
+                            },
+                            keywords: ['climate', 'warming', 'policy', 'research', 'global', 'temperature', 'emissions']
+                        }
+                    },
+                    {
+                        id: 'sample-2',
+                        name: 'COVID-19 Survey Results',
+                        description: 'Survey results from 500 participants regarding COVID-19 impact on education',
+                        type: 'csv',
+                        date: new Date(2023, 5, 22),
+                        size: 12.7,
+                        tags: ['covid-19', 'education', 'survey'],
+                        stats: {
+                            rows: 500,
+                            columns: 15,
+                            missingValues: 23,
+                            correlations: {
+                                strong: 3,
+                                moderate: 5,
+                                weak: 7
+                            },
+                            wordCount: 3500,
+                            sentimentScore: -0.1,
+                            keywords: ['covid', 'education', 'online', 'learning', 'impact']
+                        }
+                    },
+                    {
+                        id: 'sample-3',
+                        name: 'AI Ethics Literature Review',
+                        description: 'Comprehensive review of recent literature on ethical implications of AI',
+                        type: 'text',
+                        date: new Date(2023, 7, 8),
+                        size: 8.2,
+                        tags: ['AI', 'ethics', 'literature-review'],
+                        stats: {
+                            wordCount: 3254,
+                            sentimentScore: -0.1,
+                            entities: {
+                                locations: 7,
+                                organizations: 15,
+                                people: 28,
+                                dates: 12
+                            },
+                            keywords: ['artificial intelligence', 'ethics', 'bias', 'fairness', 'regulation', 'policy']
+                        }
+                    }
+                ];
+                
+                // Save data for demo mode
+                this.saveUserData();
+            },
+            
+            // Logout user
+            logout() {
+                // In a real app, this would invalidate the session with a server
+                this.state.user = null;
+                this.state.isAuthenticated = false;
+                this.state.demoMode = false;
+                
+                // Clear localStorage
+                localStorage.removeItem('user');
+                
+                // Show login screen
+                this.navigateTo('auth');
+                
+                // Update UI
+                this.updateUI();
+                
+                // Show toast
+                this.showToast('You have been logged out', 'info');
+            },
+            
+            // Navigate to section
+            navigateTo(section) {
+                // Update current section
+                this.state.currentSection = section;
+                
+                // Hide all sections
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.add('hidden');
+                document.getElementById('upload-section').classList.add('hidden');
+                document.getElementById('compare-section').classList.add('hidden');
+                document.getElementById('settings-section').classList.add('hidden');
+                
+                // Show current section
+                document.getElementById(`${section}-section`).classList.remove('hidden');
+                
+                // Update nav active state
+                document.querySelectorAll('.nav-links a').forEach(link => {
+                    link.classList.toggle('active', link.id === `nav-${section}`);
+                });
+                
+                // Special handling for sections
+                if (section === 'upload') {
+                    // Reset upload step
+                    this.goToUploadStep('info');
+                    
+                    // Reset active tags
+                    this.state.activeTags = [];
+                    this.initializeTagsInput();
+                } else if (section === 'dashboard') {
+                    // Render datasets
+                    this.renderDatasets();
+                } else if (section === 'compare') {
+                    // Render datasets selection
+                    this.renderDatasetsSelection();
+                } else if (section === 'settings') {
+                    // Update settings fields
+                    document.getElementById('theme-select').value = this.state.settings.theme;
+                    document.getElementById('model-select').value = this.state.settings.modelSize;
+                    document.getElementById('display-name').value = this.state.user?.displayName || '';
+                    document.getElementById('notify-analysis').checked = this.state.settings.notifications.analysis;
+                    document.getElementById('notify-limit').checked = this.state.settings.notifications.limit;
+                    document.getElementById('offline-mode').checked = this.state.settings.offlineMode;
+                    
+                    // Update storage usage
+                    this.updateStorageUsage();
+                }
+            },
+            
+            // Update storage usage display
+            updateStorageUsage() {
+                const storageUsage = document.getElementById('storage-usage');
+                if (!storageUsage) return;
+                
+                // Calculate total size
+                const totalSize = this.state.datasets.reduce((sum, dataset) => sum + (dataset.size || 0), 0);
+                
+                // Format the display
+                storageUsage.innerHTML = `
+                    <div style="height: 20px; background-color: var(--secondary-color); border-radius: 10px; overflow: hidden; margin-bottom: 0.5rem;">
+                        <div style="height: 100%; width: ${Math.min(totalSize, 100)}%; background-color: var(--primary-color);"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.875rem;">
+                        <span>${totalSize.toFixed(1)} MB used</span>
+                        <span>100 MB limit</span>
+                    </div>
+                `;
+            },
+            
+            // Go to upload step
+            goToUploadStep(step) {
+                this.state.uploadStep = step;
+                
+                // Update step indicators
+                document.querySelectorAll('.upload-step').forEach(s => {
+                    const stepName = s.dataset.step;
+                    
+                    if (stepName === step) {
+                        s.classList.add('active');
+                        s.classList.remove('completed');
+                    } else if (this.getStepIndex(stepName) < this.getStepIndex(step)) {
+                        s.classList.remove('active');
+                        s.classList.add('completed');
+                    } else {
+                        s.classList.remove('active');
+                        s.classList.remove('completed');
+                    }
+                });
+                
+                // Hide all step content
+                document.getElementById('info-step').classList.add('hidden');
+                document.getElementById('file-step').classList.add('hidden');
+                document.getElementById('analyze-step').classList.add('hidden');
+                
+                // Show current step content
+                document.getElementById(`${step}-step`).classList.remove('hidden');
+                
+                // Special handling for analyze step
+                if (step === 'analyze') {
+                    // Show loading view, hide results
+                    document.getElementById('loading-view').classList.remove('hidden');
+                    document.getElementById('results-view').classList.add('hidden');
+                }
+            },
+            
+            // Get step index for ordering
+            getStepIndex(step) {
+                const steps = ['info', 'file', 'analyze'];
+                return steps.indexOf(step);
+            },
+            
+            // Toggle theme
+            toggleTheme() {
+                if (this.state.settings.theme === 'dark') {
+                    this.state.settings.theme = 'light';
+                } else if (this.state.settings.theme === 'light') {
+                    this.state.settings.theme = 'dark';
+                } else {
+                    // If system, toggle to explicit setting
+                    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    this.state.settings.theme = systemDark ? 'light' : 'dark';
+                }
+                
+                // Apply theme
+                this.applyTheme();
+                
+                // Save settings
+                this.saveSettings();
+                
+                // Update settings UI if on settings page
+                if (this.state.currentSection === 'settings') {
+                    document.getElementById('theme-select').value = this.state.settings.theme;
+                }
+            },
+            
+            // Apply theme based on settings
+            applyTheme() {
+                // Get theme based on settings
+                let theme = this.state.settings.theme;
+                
+                // If system, check system preference
+                if (theme === 'system') {
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                
+                // Apply theme to document
+                document.documentElement.setAttribute('data-theme', theme);
+                
+                // Update theme toggle button
+                const themeToggle = document.getElementById('theme-toggle');
+                if (themeToggle) {
+                    themeToggle.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+                    themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+                }
+            },
+            
+            // Load user settings from localStorage
+            loadSettings() {
+                const savedSettings = localStorage.getItem('settings');
+                if (savedSettings) {
+                    try {
+                        this.state.settings = JSON.parse(savedSettings);
+                    } catch (e) {
+                        console.error('Error parsing settings', e);
+                        // Use default settings if parsing fails
+                    }
+                }
+                
+                // Load saved tags
+                const savedTags = localStorage.getItem('tags');
+                if (savedTags) {
+                    try {
+                        this.state.tags = JSON.parse(savedTags);
+                    } catch (e) {
+                        console.error('Error parsing tags', e);
+                        this.state.tags = [];
+                    }
+                }
+            },
+            
+            // Save user settings to localStorage
+            saveSettings() {
+                // Update settings from form if on settings page
+                if (this.state.currentSection === 'settings') {
+                    this.state.settings.displayName = document.getElementById('display-name').value;
+                    this.state.settings.notifications.analysis = document.getElementById('notify-analysis').checked;
+                    this.state.settings.notifications.limit = document.getElementById('notify-limit').checked;
+                    this.state.settings.offlineMode = document.getElementById('offline-mode').checked;
+                    
+                    // Update user display name
+                    if (this.state.user && this.state.settings.displayName) {
+                        this.state.user.displayName = this.state.settings.displayName;
+                        localStorage.setItem('user', JSON.stringify(this.state.user));
+                        
+                        // Update header display
+                        document.getElementById('username-display').textContent = this.state.user.displayName;
+                    }
+                    
+                    // Show toast
+                    this.showToast('Settings saved successfully', 'success');
+                }
+                
+                // Save settings to localStorage
+                localStorage.setItem('settings', JSON.stringify(this.state.settings));
+                
+                // Apply theme
+                this.applyTheme();
+                
+                // Update service worker if offline mode changed
+                if (this.state.settings.offlineMode) {
+                    this.registerServiceWorker();
+                }
+                
+                // Save user data for other settings
+                this.saveUserData();
+            },
+            
+            // Load user data from localStorage
+            loadUserData() {
+                const savedData = localStorage.getItem(`userData_${this.state.user.email}`);
+                if (savedData) {
+                    try {
+                        const data = JSON.parse(savedData);
+                        
+                        // Restore datasets with properly formatted dates
+                        if (data.datasets) {
+                            this.state.datasets = data.datasets.map(dataset => ({
+                                ...dataset,
+                                date: new Date(dataset.date)
+                            }));
+                        }
+                        
+                        // Restore usage data
+                        this.state.usageCount = data.usageCount || 0;
+                        this.state.lastUsageReset = data.lastUsageReset ? new Date(data.lastUsageReset) : new Date();
+                        
+                        // Check if we need to reset usage
+                        this.checkDailyReset();
+                    } catch (e) {
+                        console.error('Error parsing user data', e);
+                        // Use empty data if parsing fails
+                        this.state.datasets = [];
+                        this.state.usageCount = 0;
+                        this.state.lastUsageReset = new Date();
+                    }
+                } else {
+                    // No saved data, initialize with empty state
+                    this.state.datasets = [];
+                    this.state.usageCount = 0;
+                    this.state.lastUsageReset = new Date();
+                }
+                
+                // Render datasets if on dashboard
+                if (this.state.currentSection === 'dashboard') {
+                    this.renderDatasets();
+                }
+            },
+            
+            // Save user data to localStorage
+            saveUserData() {
+                // Only save if authenticated
+                if (!this.state.isAuthenticated || !this.state.user) return;
+                
+                const userData = {
+                    datasets: this.state.datasets,
+                    usageCount: this.state.usageCount,
+                    lastUsageReset: this.state.lastUsageReset
+                };
+                
+                // Save to localStorage
+                localStorage.setItem(`userData_${this.state.user.email}`, JSON.stringify(userData));
+                
+                // Update dataset counter
+                this.updateDatasetCounter();
+            },
+            
+            // Check if daily usage limit should be reset
+            checkDailyReset() {
+                if (!this.state.lastUsageReset) return;
+                
+                const now = new Date();
+                const lastReset = new Date(this.state.lastUsageReset);
+                
+                // Check if it's a new day
+                if (now.toDateString() !== lastReset.toDateString()) {
+                    // Reset usage count
+                    this.state.usageCount = 0;
+                    this.state.lastUsageReset = now;
+                    
+                    // Save data
+                    this.saveUserData();
+                    
+                    // Update UI
+                    document.getElementById('usage-count').textContent = '0';
+                }
+            }
+        };
+        
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
+</body>
+</html>
+                if (this.state.charts.wordLength) {
+                    this.state.charts.wordLength.destroy();
+                }
+                
+                const ctx = document.getElementById('word-length-chart').getContext('2d');
+                
+                // Simulate word length distribution
+                const wordLengths = [
+                    { length: '1-2', count: Math.floor(Math.random() * 50) + 20 },
+                    { length: '3-4', count: Math.floor(Math.random() * 100) + 100 },
+                    { length: '5-6', count: Math.floor(Math.random() * 150) + 150 },
+                    { length: '7-8', count: Math.floor(Math.random() * 100) + 100 },
+                    { length: '9-10', count: Math.floor(Math.random() * 50) + 40 },
+                    { length: '11+', count: Math.floor(Math.random() * 30) + 10 }
+                ];
+                
+                const chartData = {
+                    labels: wordLengths.map(wl => wl.length),
+                    datasets: [{
+                        label: 'Word Count',
+                        data: wordLengths.map(wl => wl.count),
+                        backgroundColor: 'rgba(66, 133, 244, 0.7)',
+                        borderColor: 'rgba(66, 133, 244, 1)',
+                        borderWidth: 1
+                    }]
+                };
+                
+                const chartConfig = {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                };
+                
+                // Create chart
+                this.state.charts.wordLength = new Chart(ctx, chartConfig);
+            },
+            
+            // Render common words chart
+            renderCommonWordsChart() {
+                // Clean up existing chart if it exists
+                if (this.state.charts.commonWords) {
+                    this.state.charts.commonWords.destroy();
+                }
+                
+                const ctx = document.getElementById('common-words-chart').getContext('2d');
+                const results = this.state.analysisResults;
+                
+                // Use keywords as common words for demo
+                const commonWords = results.keywords.slice(0, 8);
+                
+                const chartData = {
+                    labels: commonWords.map(k => k.word),
+                    datasets: [{
+                        label: 'Frequency',
+                        data: commonWords.map(k => k.frequency),
+                        backgroundColor: 'rgba(52, 168, 83, 0.7)',
+                        borderColor: 'rgba(52, 168, 83, 1)',
+                        borderWidth: 1
+                    }]
+                };
+                
+                const chartConfig = {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        indexAxis: 'y', // This makes the chart horizontal
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                };
+                
+                // Create chart
+                this.state.charts.commonWords = new Chart(ctx, chartConfig);
+            },
+            
+            // Run topic modeling
+            runTopicModeling() {
+                const button = document.getElementById('run-topic-modeling');
+                button.textContent = 'Processing...';
+                button.disabled = true;
+                
+                // Simulate processing time
+                setTimeout(() => {
+                    // Generate random topic keywords
+                    const topics = [
+                        ['research', 'methodology', 'analysis', 'approach', 'framework'],
+                        ['results', 'findings', 'evidence', 'data', 'conclusions'],
+                        ['implications', 'future', 'recommendations', 'applications', 'discussion']
+                    ];
+                    
+                    // Update UI
+                    document.getElementById('topic1-keywords').textContent = topics[0].join(', ');
+                    document.getElementById('topic2-keywords').textContent = topics[1].join(', ');
+                    document.getElementById('topic3-keywords').textContent = topics[2].join(', ');
+                    
+                    // Reset button
+                    button.textContent = 'Run Topic Modeling';
+                    button.disabled = false;
+                    
+                    this.showToast('Topic modeling completed', 'success');
+                }, 3000);
+            },
+            
+            // Compare similarity with another dataset
+            compareSimilarity(datasetId) {
+                const dataset = this.state.datasets.find(d => d.id === datasetId);
+                if (!dataset) return;
+                
+                // Show results container
+                document.getElementById('similarity-results').style.display = 'block';
+                
+                // Generate random similarity scores
+                const cosine = (Math.random() * 30 + 60).toFixed(1); // 60-90%
+                const jaccard = (Math.random() * 40 + 30).toFixed(1); // 30-70%
+                
+                // Update UI
+                document.getElementById('cosine-similarity').textContent = `${cosine}%`;
+                document.getElementById('jaccard-similarity').textContent = `${jaccard}%`;
+            },
+            
+            // Save dataset from analysis results
+            saveDataset() {
+                if (!this.state.analysisResults) {
+                    this.showToast('No analysis results to save', 'error');
+                    return;
+                }
+                
+                const name = document.getElementById('dataset-name').value;
+                if (!name) {
+                    this.showToast('Please enter a dataset name', 'error');
+                    return;
+                }
+                
+                const description = document.getElementById('dataset-description').value || '';
+                const type = this.state.analysisResults.datasetType;
+                
+                // Create new dataset object
+                const dataset = {
+                    id: 'ds_' + Date.now(),
+                    name,
+                    description,
+                    type,
+                    date: new Date(),
+                    size: this.state.currentFile ? (this.state.currentFile.size / (1024 * 1024)).toFixed(1) : 0,
+                    tags: [...this.state.activeTags],
+                    stats: {
+                        wordCount: this.state.analysisResults.textStats.wordCount,
+                        sentimentScore: this.state.analysisResults.sentiment.positive - this.state.analysisResults.sentiment.negative,
+                        entities: this.state.analysisResults.entities,
+                        keywords: this.state.analysisResults.keywords.slice(0, 5).map(k => k.word)
+                    }
+                };
+                
+                // Add to datasets
+                this.state.datasets.unshift(dataset);
+                
+                // Save user data
+                this.saveUserData();
+                
+                // Navigate to dashboard
+                this.navigateTo('dashboard');
+                
+                // Show success message
+                this.showToast('Dataset saved successfully', 'success');
+                
+                // Clear current file and results
+                this.state.currentFile = null;
+                this.state.fileContent = '';
+                this.state.analysisResults = null;
+                this.state.activeTags = [];
+            },
+            
+            // Render datasets in dashboard
+            renderDatasets() {
+                const datasetsList = document.getElementById('datasets-list');
+                const emptyState = document.getElementById('empty-state');
+                
+                // Check if we have datasets
+                if (this.state.datasets.length === 0) {
+                    datasetsList.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+                
+                // Hide empty state
+                emptyState.classList.add('hidden');
+                
+                // Clear list
+                datasetsList.innerHTML = '';
+                
+                // Get filter and search values
+                const filterType = document.getElementById('filter-datasets').value;
+                const searchTerm = document.getElementById('search-datasets').value.toLowerCase();
+                const sortBy = document.getElementById('sort-datasets').value;
+                
+                // Filter datasets
+                let filteredDatasets = [...this.state.datasets];
+                
+                // Filter by type
+                if (filterType !== 'all') {
+                    filteredDatasets = filteredDatasets.filter(dataset => dataset.type === filterType);
+                }
+                
+                // Filter by search term
+                if (searchTerm) {
+                    filteredDatasets = filteredDatasets.filter(dataset => 
+                        dataset.name.toLowerCase().includes(searchTerm) || 
+                        dataset.description.toLowerCase().includes(searchTerm) ||
+                        dataset.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+                    );
+                }
+                
+                // Sort datasets
+                filteredDatasets.sort((a, b) => {
+                    switch (sortBy) {
+                        case 'newest':
+                            return new Date(b.date) - new Date(a.date);
+                        case 'oldest':
+                            return new Date(a.date) - new Date(b.date);
+                        case 'name':
+                            return a.name.localeCompare(b.name);
+                        case 'size':
+                            return parseFloat(b.size) - parseFloat(a.size);
+                        default:
+                            return 0;
+                    }
+                });
+                
+                // Render datasets
+                filteredDatasets.forEach(dataset => {
+                    const card = document.createElement('div');
+                    card.className = 'dataset-card';
+                    card.dataset.id = dataset.id;
+                    
+                    // Format date
+                    const date = new Date(dataset.date);
+                    const formattedDate = date.toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                    
+                    // Type icon
+                    let typeIcon = '📄';
+                    if (dataset.type === 'csv') typeIcon = '📊';
+                    if (dataset.type === 'json') typeIcon = '🔢';
+                    
+                    // Render tags
+                    const tagsHtml = dataset.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+                    
+                    // Keywords list
+                    const keywords = dataset.stats.keywords || [];
+                    const keywordsText = keywords.join(', ');
+                    
+                    card.innerHTML = `
+                        <div class="dataset-header">
+                            <h3 class="dataset-title">${typeIcon} ${dataset.name}</h3>
+                            <div>
+                                <input type="checkbox" class="dataset-select" data-id="${dataset.id}">
+                            </div>
+                        </div>
+                        <div class="dataset-meta">
+                            Added on ${formattedDate} • ${dataset.size} MB
+                        </div>
+                        <p>${dataset.description || 'No description provided.'}</p>
+                        <div class="dataset-tags">
+                            ${tagsHtml}
+                        </div>
+                        <div style="font-size: 0.875rem; color: var(--light-text);">
+                            <strong>Keywords:</strong> ${keywordsText || 'None'}
+                        </div>
+                        <div class="dataset-actions">
+                            <button class="btn btn-small btn-primary view-dataset" data-id="${dataset.id}">
+                                <span class="btn-icon">📊</span> View Analysis
+                            </button>
+                            <button class="btn btn-small btn-secondary export-dataset" data-id="${dataset.id}">
+                                <span class="btn-icon">📤</span> Export
+                            </button>
+                            <button class="btn btn-small btn-secondary delete-dataset" data-id="${dataset.id}">
+                                <span class="btn-icon">🗑️</span> Delete
+                            </button>
+                        </div>
+                    `;
+                    
+                    datasetsList.appendChild(card);
+                    
+                    // Add event listeners
+                    const viewBtn = card.querySelector('.view-dataset');
+                    viewBtn.addEventListener('click', () => {
+                        this.viewDataset(dataset.id);
+                    });
+                    
+                    const exportBtn = card.querySelector('.export-dataset');
+                    exportBtn.addEventListener('click', () => {
+                        this.showExportDatasetModal(dataset.id);
+                    });
+                    
+                    const deleteBtn = card.querySelector('.delete-dataset');
+                    deleteBtn.addEventListener('click', () => {
+                        this.deleteDataset(dataset.id);
+                    });
+                    
+                    const checkbox = card.querySelector('.dataset-select');
+                    checkbox.addEventListener('change', (e) => {
+                        this.toggleDatasetSelection(dataset.id, e.target.checked);
+                    });
+                });
+                
+                // Show empty state if no results
+                if (filteredDatasets.length === 0) {
+                    datasetsList.innerHTML = `
+                        <div style="text-align: center; padding: 2rem;">
+                            <p>No datasets match your search criteria.</p>
+                        </div>
+                    `;
+                }
+            },
+            
+            // Filter datasets based on search and filters
+            filterDatasets() {
+                this.renderDatasets();
+            },
+            
+            // Toggle dataset selection
+            toggleDatasetSelection(id, isSelected) {
+                if (isSelected) {
+                    // Add to selection
+                    if (!this.state.selectedDatasets.includes(id)) {
+                        this.state.selectedDatasets.push(id);
+                    }
+                } else {
+                    // Remove from selection
+                    this.state.selectedDatasets = this.state.selectedDatasets.filter(dsId => dsId !== id);
+                }
+                
+                // Update bulk action bar
+                this.updateBulkActionBar();
+            },
+            
+            // Update bulk action bar
+            updateBulkActionBar() {
+                const bulkActionBar = document.getElementById('bulk-action-bar');
+                const selectedCount = this.state.selectedDatasets.length;
+                
+                if (selectedCount > 0) {
+                    bulkActionBar.classList.remove('hidden');
+                    bulkActionBar.querySelector('.bulk-action-text').textContent = `${selectedCount} dataset${selectedCount !== 1 ? 's' : ''} selected`;
+                    
+                    // Enable/disable compare button (max 3)
+                    document.getElementById('bulk-compare-btn').disabled = selectedCount > 3;
+                } else {
+                    bulkActionBar.classList.add('hidden');
+                }
+            },
+            
+            // Setup event listeners
+            setupEventListeners() {
+                // Auth section event listeners
+                document.querySelectorAll('.auth-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const tabId = tab.dataset.tab;
+                        
+                        // Update active tab
+                        document.querySelectorAll('.auth-tab').forEach(t => {
+                            t.classList.toggle('active', t === tab);
+                        });
+                        
+                        // Show correct form
+                        document.getElementById('login-form').classList.toggle('hidden', tabId !== 'login');
+                        document.getElementById('register-form').classList.toggle('hidden', tabId !== 'register');
+                    });
+                });
+                
+                // Login button
+                document.getElementById('login-btn').addEventListener('click', () => {
+                    const email = document.getElementById('login-email').value;
+                    const password = document.getElementById('login-password').value;
+                    
+                    // In a real app, this would authenticate with a server
+                    // For demo purposes, we're using a simple condition
+                    if (email && password) {
+                        this.login(email, password);
+                    } else {
+                        document.getElementById('login-error').textContent = 'Please enter both email and password';
+                    }
+                });
+                
+                // Register button
+                document.getElementById('register-btn').addEventListener('click', () => {
+                    const email = document.getElementById('register-email').value;
+                    const password = document.getElementById('register-password').value;
+                    const confirmPassword = document.getElementById('register-password-confirm').value;
+                    
+                    const errorElement = document.getElementById('register-error');
+                    
+                    // Validation
+                    if (!email) {
+                        errorElement.textContent = 'Please enter an email address';
+                        return;
+                    }
+                    
+                    if (password.length < 6) {
+                        errorElement.textContent = 'Password must be at least 6 characters';
+                        return;
+                    }
+                    
+                    if (password !== confirmPassword) {
+                        errorElement.textContent = 'Passwords do not match';
+                        return;
+                    }
+                    
+                    // In a real app, this would register with a server
+                    // For demo purposes, we're just creating a local user
+                    this.register(email, password);
+                });
+                
+                // Demo mode button
+                document.getElementById('demo-mode-btn').addEventListener('click', () => {
+                    this.enterDemoMode();
+                });
+                
+                // Navigation links
+                document.querySelectorAll('.nav-links a').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        
+                        const sectionId = link.id.replace('nav-', '');
+                        this.navigateTo(sectionId);
+                    });
+                });
+                
+                // Logout button
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    this.logout();
+                });
+                
+                // Theme toggle
+                document.getElementById('theme-toggle').addEventListener('click', () => {
+                    this.toggleTheme();
+                });
+                
+                // Upload new dataset button
+                document.getElementById('new-upload-btn')?.addEventListener('click', () => {
+                    this.navigateTo('upload');
+                });
+                
+                // Empty state upload button
+                document.getElementById('first-upload-btn')?.addEventListener('click', () => {
+                    this.navigateTo('upload');
+                });
+                
+                // Import URL button
+                document.getElementById('import-url-btn')?.addEventListener('click', () => {
+                    this.showImportUrlModal();
+                });
+                
+                // Upload section buttons
+                document.getElementById('info-back-btn')?.addEventListener('click', () => {
+                    this.navigateTo('dashboard');
+                });
+                
+                document.getElementById('info-next-btn')?.addEventListener('click', () => {
+                    this.goToUploadStep('file');
+                });
+                
+                document.getElementById('file-back-btn')?.addEventListener('click', () => {
+                    this.goToUploadStep('info');
+                });
+                
+                document.getElementById('file-next-btn')?.addEventListener('click', () => {
+                    this.goToUploadStep('analyze');
+                    this.startAnalysis();
+                });
+                
+                document.getElementById('results-back-btn')?.addEventListener('click', () => {
+                    this.goToUploadStep('file');
+                });
+                
+                document.getElementById('save-dataset-btn')?.addEventListener('click', () => {
+                    this.saveDataset();
+                });
+                
+                // File upload handling
+                const dropZone = document.getElementById('drop-zone');
+                const fileInput = document.getElementById('file-input');
+                
+                if (dropZone && fileInput) {
+                    // Click to browse
+                    dropZone.addEventListener('click', () => {
+                        fileInput.click();
+                    });
+                    
+                    // File selected via input
+                    fileInput.addEventListener('change', (e) => {
+                        if (e.target.files.length > 0) {
+                            this.handleFileUpload(e.target.files[0]);
+                        }
+                    });
+                    
+                    // Drag and drop
+                    dropZone.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        dropZone.classList.add('highlight');
+                    });
+                    
+                    dropZone.addEventListener('dragleave', () => {
+                        dropZone.classList.remove('highlight');
+                    });
+                    
+                    dropZone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        dropZone.classList.remove('highlight');
+                        
+                        if (e.dataTransfer.files.length > 0) {
+                            this.handleFileUpload(e.dataTransfer.files[0]);
+                        }
+                    });
+                }
+                
+                // Remove file button
+                document.getElementById('remove-file-btn')?.addEventListener('click', () => {
+                    this.removeUploadedFile();
+                });
+                
+                // Results tabs
+                document.querySelectorAll('.results-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const tabId = tab.dataset.tab;
+                        this.state.currentTab = tabId;
+                        
+                        // Update active tab
+                        document.querySelectorAll('.results-tab').forEach(t => {
+                            t.classList.toggle('active', t === tab);
+                        });
+                        
+                        // Show correct content
+                        document.querySelectorAll('.result-section').forEach(section => {
+                            section.classList.toggle('hidden', section.id !== `${tabId}-tab`);
+                        });
+                    });
+                });
+                
+                // Visualization options
+                document.querySelectorAll('.vis-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const visType = option.dataset.vis;
+                        const parent = option.parentElement;
+                        
+                        // Update active option
+                        parent.querySelectorAll('.vis-option').forEach(opt => {
+                            opt.classList.toggle('active', opt === option);
+                        });
+                        
+                        // Update visualization based on parent section
+                        if (parent.closest('#sentiment-tab')) {
+                            this.updateSentimentVisualization(visType);
+                        } else if (parent.closest('#keywords-tab')) {
+                            this.updateKeywordsVisualization(visType);
+                        }
+                    });
+                });
+                
+                // Compare run button
+                document.getElementById('run-comparison-btn')?.addEventListener('click', () => {
+                    this.runComparison();
+                });
+                
+                // Settings save button
+                document.getElementById('save-settings-btn')?.addEventListener('click', () => {
+                    this.saveSettings();
+                });
+                
+                // Modal close button
+                document.getElementById('modal-close').addEventListener('click', () => {
+                    this.closeModal();
+                });
+                
+                // Modal cancel button
+                document.getElementById('modal-cancel').addEventListener('click', () => {
+                    this.closeModal();
+                });
+                
+                // Search datasets input
+                const searchInput = document.getElementById('search-datasets');
+                if (searchInput) {
+                    // Use debounce for better performance on search
+                    let debounceTimeout;
+                    searchInput.addEventListener('input', () => {
+                        clearTimeout(debounceTimeout);
+                        debounceTimeout = setTimeout(() => {
+                            this.filterDatasets();
+                        }, 300);
+                    });
+                }
+                
+                // Dataset filters
+                document.getElementById('filter-datasets')?.addEventListener('change', () => {
+                    this.filterDatasets();
+                });
+                
+                document.getElementById('sort-datasets')?.addEventListener('change', () => {
+                    this.filterDatasets();
+                });
+                
+                // Topic modeling button
+                document.getElementById('run-topic-modeling')?.addEventListener('click', () => {
+                    this.runTopicModeling();
+                });
+                
+                // Data management buttons
+                document.getElementById('clear-data-btn')?.addEventListener('click', () => {
+                    this.showConfirmationModal(
+                        'Clear All Data',
+                        'Are you sure you want to delete all datasets? This action cannot be undone.',
+                        () => {
+                            this.clearAllData();
+                        }
+                    );
+                });
+                
+                document.getElementById('export-all-btn')?.addEventListener('click', () => {
+                    this.exportAllData();
+                });
+                
+                // Similarity dataset selection
+                document.getElementById('similarity-dataset')?.addEventListener('change', (e) => {
+                    const datasetId = e.target.value;
+                    if (datasetId) {
+                        this.compareSimilarity(datasetId);
+                    } else {
+                        document.getElementById('similarity-results').style.display = 'none';
+                    }
+                });
+                
+                // Bulk action buttons
+                document.getElementById('bulk-cancel-btn')?.addEventListener('click', () => {
+                    // Clear all selections
+                    this.state.selectedDatasets = [];
+                    
+                    // Update checkboxes
+                    document.querySelectorAll('.dataset-select').forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    
+                    // Hide bulk action bar
+                    document.getElementById('bulk-action-bar').classList.add('hidden');
+                });
+                
+                document.getElementById('bulk-compare-btn')?.addEventListener('click', () => {
+                    // Set compare datasets and navigate to compare section
+                    this.state.compareDatasets = [...this.state.selectedDatasets];
+                    this.navigateTo('compare');
+                    
+                    // Clear selections
+                    this.state.selectedDatasets = [];
+                    document.getElementById('bulk-action-bar').classList.add('hidden');
+                });
+                
+                document.getElementById('bulk-delete-btn')?.addEventListener('click', () => {
+                    const count = this.state.selectedDatasets.length;
+                    this.showConfirmationModal(
+                        'Delete Datasets',
+                        `Are you sure you want to delete ${count} dataset${count !== 1 ? 's' : ''}? This action cannot be undone.`,
+                        () => {
+                            // Remove selected datasets
+                            this.state.datasets = this.state.datasets.filter(dataset => 
+                                !this.state.selectedDatasets.includes(dataset.id)
+                            );
+                            
+                            // Clear selections
+                            this.state.selectedDatasets = [];
+                            
+                            // Save user data
+                            this.saveUserData();
+                            
+                            // Update UI
+                            this.renderDatasets();
+                            document.getElementById('bulk-action-bar').classList.add('hidden');
+                            
+                            // Close modal
+                            this.closeModal();
+                            
+                            // Show toast
+                            this.showToast(`${count} dataset${count !== 1 ? 's' : ''} deleted successfully`, 'success');
+                        }
+                    );
+                });
+                
+                // Settings theme select
+                document.getElementById('theme-select')?.addEventListener('change', (e) => {
+                    this.state.settings.theme = e.target.value;
+                    this.applyTheme();
+                });
+                
+                // Model select
+                document.getElementById('model-select')?.addEventListener('change', (e) => {
+                    this.state.settings.modelSize = e.target.value;
+                });
+                
+                // Offline mode toggle
+                document.getElementById('offline-mode')?.addEventListener('change', (e) => {
+                    this.state.settings.offlineMode = e.target.checked;
+                    
+                    if (e.target.checked) {
+                        this.registerServiceWorker();
+                    }
+                });
+                
+                // Set up keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // Only if ctrl is pressed
+                    if (e.ctrlKey) {
+                        switch (e.key) {
+                            case 'd':
+                                e.preventDefault();
+                                this.navigateTo('dashboard');
+                                break;
+                            case 'u':
+                                e.preventDefault();
+                                this.navigateTo('upload');
+                                break;
+                            case 'c':
+                                e.preventDefault();
+                                this.navigateTo('compare');
+                                break;
+                            case 's':
+                                e.preventDefault();
+                                this.navigateTo('settings');
+                                break;
+                            case '?':
+                                e.preventDefault();
+                                this.startTutorial();
+                                break;
+                        }
+                        
+                        // Toggle dark mode with Ctrl+Shift+D
+                        if (e.shiftKey && e.key === 'D') {
+                            e.preventDefault();
+                            this.toggleTheme();
+                        }
+                    }
+                    
+                    // Close modal with Escape
+                    if (e.key === 'Escape') {
+                        if (this.state.tutorialActive) {
+                            this.endTutorial();
+                        } else {
+                            this.closeModal();
+                        }
+                    }
+                });
+                
+                // Tutorial buttons
+                document.getElementById('tutorial-skip')?.addEventListener('click', () => {
+                    this.endTutorial();
+                });
+                
+                document.getElementById('tutorial-next')?.addEventListener('click', () => {
+                    this.nextTutorialStep();
+                });
+            },
+            
+            // View dataset analysis
+            viewDataset(id) {
+                const dataset = this.state.datasets.find(ds => ds.id === id);
+                if (!dataset) return;
+                
+                // In a real app, this would load the full analysis results
+                // For demo, we'll simulate this by creating analysis results
+                
+                // Generate analysis content based on stored stats
+                const wordCount = dataset.stats.wordCount || 0;
+                const sentimentScore = dataset.stats.sentimentScore || 0;
+                
+                let sentiment = {
+                    positive: 0.33,
+                    neutral: 0.34,
+                    negative: 0.33
+                };
+                
+                if (sentimentScore > 0.2) {
+                    sentiment = { positive: 0.6, neutral: 0.3, negative: 0.1 };
+                } else if (sentimentScore < -0.2) {
+                    sentiment = { positive: 0.1, neutral: 0.3, negative: 0.6 };
+                }
+                
+                const textStats = {
+                    wordCount,
+                    charCount: wordCount * 5,
+                    sentenceCount: Math.floor(wordCount / 15),
+                    paragraphCount: Math.floor(wordCount / 100),
+                    avgWordsPerSentence: 15,
+                    readingTimeMinutes: Math.max(1, Math.floor(wordCount / 200))
+                };
+                
+                // Generate keywords from stats
+                const keywords = (dataset.stats.keywords || []).map(word => ({
+                    word,
+                    frequency: Math.floor(Math.random() * 20) + 1,
+                    relevance: Math.random() * 0.5 + 0.5
+                }));
+                
+                // Fill in with additional keywords if needed
+                const additionalKeywords = [
+                    'analysis', 'research', 'study', 'method', 'results',
+                    'findings', 'approach', 'data', 'conclusion', 'theory'
+                ];
+                
+                while (keywords.length < 10) {
+                    const word = additionalKeywords[keywords.length % additionalKeywords.length];
+                    keywords.push({
+                        word,
+                        frequency: Math.floor(Math.random() * 20) + 1,
+                        relevance: Math.random() * 0.3 + 0.2
+                    });
+                }
+                
+                // Create simulated analysis results
+                this.state.analysisResults = {
+                    textStats,
+                    sentiment,
+                    keywords,
+                    entities: dataset.stats.entities || {
+                        people: Math.floor(Math.random() * 5),
+                        organizations: Math.floor(Math.random() * 5),
+                        locations: Math.floor(Math.random() * 5),
+                        dates: Math.floor(Math.random() * 5)
+                    },
+                    datasetType: dataset.type,
+                    text: `This is a preview of            
+            // Render charts with Chart.js
+            renderSentimentChart(type = 'donut') {
+                // Clean up existing chart if it exists
+                if (this.state.charts.sentiment) {
+                    this.state.charts.sentiment.destroy();
+                }
+                
+                const ctx = document.getElementById('sentiment-chart').getContext('2d');
+                const results = this.state.analysisResults;
+                
+                const chartData = {
+                    labels: ['Positive', 'Neutral', 'Negative'],
+                    datasets: [{
+                        data: [
+                            results.sentiment.positive * 100,
+                            results.sentiment.neutral * 100,
+                            results.sentiment.negative * 100
+                        ],
+                        backgroundColor: [
+                            'rgba(52, 168, 83, 0.7)',
+                            'rgba(251, 188, 5, 0.7)',
+                            'rgba(234, 67, 53, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(52, 168, 83, 1)',
+                            'rgba(251, 188, 5, 1)',
+                            'rgba(234, 67, 53, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                };
+                
+                let chartConfig;
+                
+                if (type === 'radar') {
+                    chartConfig = {
+                        type: 'radar',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    beginAtZero: true,
+                                    max: 100
+                                }
+                            }
+                        }
+                    };
+                } else { // Default to donut
+                    chartConfig = {
+                        type: 'doughnut',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `${context.label}: ${context.raw.toFixed(1)}%`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+                
+                // Create chart
+                this.state.charts.sentiment = new Chart(ctx, chartConfig);
+            },
+            
+            // Render keywords chart
+            renderKeywordsChart() {
+                // Clean up existing chart if it exists
+                if (this.state.charts.keywords) {
+                    this.state.charts.keywords.destroy();
+                }
+                
+                const ctx = document.getElementById('keywords-chart').getContext('2d');
+                const results = this.state.analysisResults;
+                
+                // Get top 10 keywords
+                const topKeywords = results.keywords.slice(0, 10);
+                
+                const chartData = {
+                    labels: topKeywords.map(k => k.word),
+                    datasets: [{
+                        label: 'Relevance Score',
+                        data: topKeywords.map(k => k.relevance * 100),
+                        backgroundColor: 'rgba(66, 133, 244, 0.7)',
+                        borderColor: 'rgba(66, 133, 244, 1)',
+                        borderWidth: 1
+                    }]
+                };
+                
+                const chartConfig = {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Relevance: ${context.raw.toFixed(1)}%`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+                
+                // Create chart
+                this.state.charts.keywords = new Chart(ctx, chartConfig);
+            },
+            
+            // Render entities chart
+            renderEntitiesChart() {
+                // Clean up existing chart if it exists
+                if (this.state.charts.entities) {
+                    this.state.charts.entities.destroy();
+                }
+                
+                const ctx = document.getElementById('entities-chart').getContext('2d');
+                const results = this.state.analysisResults;
+                
+                const chartData = {
+                    labels: ['People', 'Organizations', 'Locations', 'Dates'],
+                    datasets: [{
+                        label: 'Entity Count',
+                        data: [
+                            results.entities.people || 0,
+                            results.entities.organizations || 0,
+                            results.entities.locations || 0,
+                            results.entities.dates || 0
+                        ],
+                        backgroundColor: [
+                            'rgba(66, 133, 244, 0.7)',
+                            'rgba(52, 168, 83, 0.7)',
+                            'rgba(251, 188, 5, 0.7)',
+                            'rgba(234, 67, 53, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(66, 133, 244, 1)',
+                            'rgba(52, 168, 83, 1)',
+                            'rgba(251, 188, 5, 1)',
+                            'rgba(234, 67, 53, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                };
+                
+                const chartConfig = {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                };
+                
+                // Create chart
+                this.state.charts.entities = new Chart(ctx, chartConfig);
+            },
+            
+            // Render word length chart
+            renderWordLengthChart() {
+                // Clean up existing chart if it exists
+                if (this.state.charts.wordLength) {
+                    this.state.<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Dataset Platform</title>
+    <meta name="description" content="Analyze academic datasets with browser-based AI for research and education">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    
+    <!-- Preconnect to CDNs for faster loading -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    
+    <style>
+        /* CSS Variables for theming */
+        :root {
+            --primary-color: #4285f4;
+            --primary-dark: #3367d6;
+            --primary-light: #e8f0fe;
+            --secondary-color: #f1f3f4;
+            --text-color: #202124;
+            --light-text: #5f6368;
+            --border-color: #dadce0;
+            --success-color: #34a853;
+            --warning-color: #fbbc05;
+            --error-color: #ea4335;
+            --box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            --header-height: 64px;
+            --navbar-height: 48px;
+            --chart-color-1: 66, 133, 244;
+            --chart-color-2: 52, 168, 83;
+            --chart-color-3: 251, 188, 5;
+            --chart-color-4: 234, 67, 53;
+            --chart-color-5: 95, 99, 104;
+        }
+
+        /* Dark mode colors */
+        [data-theme="dark"] {
+            --primary-color: #8ab4f8;
+            --primary-dark: #669df6;
+            --primary-light: #394457;
+            --secondary-color: #2d2d2d;
+            --text-color: #e8eaed;
+            --light-text: #9aa0a6;
+            --border-color: #5f6368;
+            --box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            background-color: #202124;
+        }
+
+        /* Base Styles */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family);
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--secondary-color);
+            overflow-x: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.25rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            margin-bottom: 1rem;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        h1 { font-size: 2.25rem; }
+        h2 { font-size: 1.75rem; }
+        h3 { font-size: 1.375rem; }
+        p { margin-bottom: 1rem; }
+
+        /* Buttons */
+        button, .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.625rem 1.25rem;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            text-align: center;
+            text-decoration: none;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            outline: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+        }
+
+        [data-theme="dark"] .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-small {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn-text {
+            background-color: transparent;
+            color: var(--primary-color);
+            padding: 0.25rem 0.5rem;
+        }
+
+        .btn-text:hover {
+            background-color: var(--primary-light);
+        }
+
+        button:disabled, .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Form elements */
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 0.9375rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background-color: white;
+            color: var(--text-color);
+            transition: var(--transition);
+        }
+
+        [data-theme="dark"] input, 
+        [data-theme="dark"] textarea, 
+        [data-theme="dark"] select {
+            background-color: #333;
+            color: var(--text-color);
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        /* Header */
+        header {
+            background-color: white;
+            box-shadow: var(--box-shadow);
+            height: var(--header-height);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: background-color 0.3s ease;
+        }
+
+        [data-theme="dark"] header {
+            background-color: #292a2d;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: var(--header-height);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: var(--text-color);
+        }
+
+        .logo-icon {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            cursor: pointer;
+            color: var(--light-text);
+            margin-right: 0.5rem;
+        }
+
+        /* Navigation */
+        nav {
+            background-color: white;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            height: var(--navbar-height);
+            transition: background-color 0.3s ease;
+        }
+
+        [data-theme="dark"] nav {
+            background-color: #292a2d;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: var(--navbar-height);
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-links li {
+            margin-right: 0.5rem;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+        }
+
+        [data-theme="dark"] .nav-links a:hover {
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .nav-links a.active {
+            color: var(--primary-color);
+            background-color: var(--primary-light);
+        }
+
+        .usage-counter {
+            font-size: 0.875rem;
+            color: var(--light-text);
+            display: flex;
+            align-items: center;
+        }
+
+        .usage-count {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin: 0 0.25rem;
+        }
+
+        /* Auth Section */
+        .auth-container {
+            max-width: 400px;
+            margin: 3rem auto;
+            padding: 2rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            transition: background-color 0.3s ease;
+        }
+
+        [data-theme="dark"] .auth-container {
+            background-color: #292a2d;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .auth-tab {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 0.75rem 0;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--light-text);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .auth-tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .error-message {
+            color: var(--error-color);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Main Content Sections */
+        main {
+            padding: 2rem 0;
+            min-height: calc(100vh - var(--header-height) - var(--navbar-height));
+        }
+
+        section {
+            margin-bottom: 2rem;
+        }
+
+        /* Card Styles */
+        .card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        [data-theme="dark"] .card {
+            background-color: #292a2d;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Dashboard */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-filter {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .search-input {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input input {
+            padding-left: 2.5rem;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--light-text);
+        }
+
+        .filter-dropdown {
+            width: auto;
+            min-width: 150px;
+        }
+
+        /* Dataset Cards */
+        .dataset-card {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            background-color: white;
+            transition: var(--transition);
+        }
+
+        [data-theme="dark"] .dataset-card {
+            background-color: #292a2d;
+        }
+
+        .dataset-card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dataset-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .dataset-title {
+            margin-bottom: 0.5rem;
+        }
+
+        .dataset-meta {
+            font-size: 0.875rem;
+            color: var(--light-text);
+            margin-bottom: 0.75rem;
+        }
+
+        .dataset-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.625rem;
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .dataset-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--light-text);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Upload Section */
+        .upload-steps {
+            display: flex;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .upload-step {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            margin-right: 0.5rem;
+            color: var(--light-text);
+            border-bottom: 3px solid transparent;
+            transition: var(--transition);
+        }
+
+        .upload-step.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .step-number {
+            width: 1.5rem;
+            height: 1.5rem;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .upload-step.active .step-number {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .upload-step.completed .step-number {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .drop-zone:hover, .drop-zone.highlight {
+            border-color: var(--primary-color);
+            background-color: var(--primary-light);
+        }
+
+        .drop-zone-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--light-text);
+        }
+
+        .drop-zone:hover .drop-zone-icon, 
+        .drop-zone.highlight .drop-zone-icon {
+            color: var(--primary-color);
+        }
+
+        .file-preview {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+            margin-right: 0.75rem;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .file-size {
+            font-size: 0.875rem;
+            color: var(--light-text);
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1.5rem;
+        }
+
+        /* Analysis and Results */
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .loading-message {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .results-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .results-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .results-tab {
+            padding: 0.75rem 1.25rem;
+            background: none;
+            border: none;
+            font-weight: 500;
+            color: var(--light-text);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: var(--transition);
+        }
+
+        .results-tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .result-section {
+            margin-bottom: 2rem;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 1.25rem;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: var(--light-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .text-preview {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 1.25rem;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 1.5rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+        }
+
+        /* Sentiment Analysis */
+        .sentiment-bars {
+            margin: 1.5rem 0;
+        }
+
+        .sentiment-bar-container {
+            margin-bottom: 1rem;
+        }
+
+        .sentiment-bar-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .sentiment-bar-bg {
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            height: 1.25rem;
+            overflow: hidden;
+        }
+
+        .sentiment-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 0.5rem;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .sentiment-bar.positive {
+            background-color: var(--success-color);
+        }
+
+        .sentiment-bar.neutral {
+            background-color: var(--warning-color);
+            color: var(--text-color);
+        }
+
+        .sentiment-bar.negative {
+            background-color: var(--error-color);
+        }
+
+        /* Keywords Cloud */
+        .keywords-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 1.5rem;
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+        }
+
+        .keyword-item {
+            display: inline-block;
+            padding: 0.375rem 0.75rem;
+            background-color: white;
+            border-radius: 1rem;
+            transition: var(--transition);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] .keyword-item {
+            background-color: #333;
+        }
+
+        .keyword-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Charts */
+        .chart-container {
+            height: 300px;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--light-text);
+            background-color: var(--secondary-color);
+        }
+
+        [data-theme="dark"] th {
+            background-color: #333;
+        }
+
+        tr:hover td {
+            background-color: var(--secondary-color);
+        }
+
+        [data-theme="dark"] tr:hover td {
+            background-color: #333;
+        }
+
+        /* Dropdowns */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            min-width: 180px;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            overflow: hidden;
+            transform-origin: top right;
+            transform: scale(0.95);
+            opacity: 0;
+            visibility: hidden;
+            transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0.2s;
+        }
+        
+        [data-theme="dark"] .dropdown-menu {
+            background-color: #333;
+        }
+
+        .dropdown.active .dropdown-menu {
+            transform: scale(1);
+            opacity: 1;
+            visibility: visible;
+            transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0s;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: var(--text-color);
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--secondary-color);
+        }
+
+        [data-theme="dark"] .dropdown-item:hover {
+            background-color: #444;
+        }
+
+        .dropdown-icon {
+            margin-right: 0.75rem;
+            font-size: 1.125rem;
+            color: var(--light-text);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background-color: white;
+            border-radius: var(--border-radius);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            transform: translateY(20px);
+            transition: var(--transition);
+        }
+
+        [data-theme="dark"] .modal {
+            background-color: #292a2d;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--light-text);
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            color: var(--error-color);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            margin-top: 0.5rem;
+            animation: slideIn 0.3s ease-out;
+            max-width: 300px;
+            transition: var(--transition);
+        }
+
+        [data-theme="dark"] .toast {
+            background-color: #292a2d;
+        }
+
+        .toast-icon {
+            margin-right: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .toast-success .toast-icon {
+            color: var(--success-color);
+        }
+
+        .toast-error .toast-icon {
+            color: var(--error-color);
+        }
+
+        .toast-info .toast-icon {
+            color: var(--primary-color);
+        }
+
+        .toast-message {
+            font-size: 0.875rem;
+        }
+
+        /* Tags Input */
+        .tags-input-container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background-color: white;
+            min-height: 46px;
+        }
+        
+        [data-theme="dark"] .tags-input-container {
+            background-color: #333;
+        }
+
+        .tag-item {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .tag-item button {
+            border: none;
+            background: none;
+            color: var(--primary-color);
+            margin-left: 0.25rem;
+            padding: 0;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .tags-input {
+            flex: 1;
+            min-width: 100px;
+            border: none;
+            outline: none;
+            padding: 0.25rem;
+            background: transparent;
+        }
+
+        .tags-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            z-index: 10;
+        }
+        
+        [data-theme="dark"] .tags-suggestions {
+            background-color: #333;
+        }
+
+        .tag-suggestion {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        .tag-suggestion:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        [data-theme="dark"] .tag-suggestion:hover {
+            background-color: #444;
+        }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .4s;
+            border-radius: 22px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary-color);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--primary-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Tutorial */
+        .tutorial-step {
+            position: relative;
+            z-index: 1001;
+        }
+
+        .tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .tutorial-highlight {
+            position: relative;
+            z-index: 1001;
+            box-shadow: 0 0 0 4px var(--primary-color);
+        }
+
+        .tutorial-tooltip {
+            position: absolute;
+            z-index: 1001;
+            max-width: 300px;
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        [data-theme="dark"] .tutorial-tooltip {
+            background-color: #292a2d;
+        }
+
+        .tutorial-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+        }
+
+        /* Export Dialog */
+        .export-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .export-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .export-option:hover {
+            border-color: var(--primary-color);
+            background-color: var(--primary-light);
+        }
+
+        .export-option-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .export-option-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* Additional visualization options */
+        .vis-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .vis-option {
+            flex: 1;
+            min-width: 80px;
+            padding: 0.625rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .vis-option:hover, .vis-option.active {
+            border-color: var(--primary-color);
+            background-color: var(--primary-light);
+        }
+
+        /* Import URL */
+        .url-input-container {
+            position: relative;
+            margin: 1.5rem 0;
+        }
+
+        .url-input-container input {
+            padding-right: 120px;
+        }
+
+        .url-input-actions {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Bulk action bar */
+        .bulk-action-bar {
+            display: flex;
+            align-items: center;
+            padding: 0.625rem 1rem;
+            background-color: var(--primary-light);
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            animation: slideInFromTop 0.3s ease;
+        }
+
+        .bulk-action-text {
+            font-weight: 500;
+            margin-right: auto;
+        }
+
+        .bulk-action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        @keyframes slideInFromTop {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(var(--chart-color-1), 0.3);
+            border-radius: 50%;
+            border-top-color: rgba(var(--chart-color-1), 1);
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        /* Keyboard Shortcuts */
+        .keyboard-shortcut {
+            display: inline-block;
+            padding: 0.125rem 0.375rem;
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-family: monospace;
+            margin-left: 0.5rem;
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.75rem; }
+            h2 { font-size: 1.5rem; }
+
+            .header-content {
+                flex-direction: column;
+                height: auto;
+                padding: 1rem 0;
+            }
+
+            .nav-container {
+                flex-direction: column;
+                height: auto;
+                padding: 0.5rem 0;
+            }
+
+            .nav-links {
+                margin-bottom: 0.5rem;
+            }
+
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .search-filter {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+
+            .upload-steps {
+                overflow-x: auto;
+                padding-bottom: 0.5rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .form-actions {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .form-actions button {
+                width: 100%;
+            }
+            
+            .dataset-actions {
+                flex-direction: column;
+            }
+            
+            .dataset-actions button {
+                width: 100%;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .stats-container {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            header, nav, .no-print {
+                display: none !important;
+            }
+
+            body, .card, .dataset-card, [data-theme="dark"] .card, [data-theme="dark"] .dataset-card {
+                background-color: white !important;
+                color: black !important;
+            }
+
+            main {
+                padding: 0 !important;
+            }
+
+            .text-preview {
+                overflow: visible;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo">
+                    <span class="logo-icon">📊</span>
+                    <h1>Academic Dataset Platform</h1>
+                </a>
+                <div class="user-info hidden" id="user-info">
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+                    <span id="username-display"></span>
+                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <div class="nav-container">
+                <ul class="nav-links">
+                    <li><a href="#" id="nav-dashboard" class="active">Dashboard</a></li>
+                    <li><a href="#" id="nav-upload">Upload</a></li>
+                    <li><a href="#" id="nav-compare">Compare</a></li>
+                    <li><a href="#" id="nav-settings">Settings</a></li>
+                </ul>
+                <div class="usage-counter">
+                    <span>Usage:</span>
+                    <span id="usage-count" class="usage-count">0</span>
+                    <span>/ 20 today</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Auth Section -->
+        <section id="auth-section">
+            <div class="auth-container">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">Login</button>
+                    <button class="auth-tab" data-tab="register">Register</button>
+                </div>
+                
+                <div id="login-form">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="Enter your password" autocomplete="current-password">
+                    </div>
+                    <button id="login-btn" class="btn btn-primary">
+                        <span class="btn-icon">🔒</span>
+                        Login
+                    </button>
+                    <p id="login-error" class="error-message"></p>
+                </div>
+                
+                <div id="register-form" class="hidden">
+                    <div class="form-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" placeholder="Enter your email" autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" placeholder="Create a password (min. 6 characters)" autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password-confirm">Confirm Password</label>
+                        <input type="password" id="register-password-confirm" placeholder="Confirm your password" autocomplete="new-password">
+                    </div>
+                    <button id="register-btn" class="btn btn-primary">
+                        <span class="btn-icon">✏️</span>
+                        Register
+                    </button>
+                    <p id="register-error" class="error-message"></p>
+                </div>
+                
+                <!-- Demo Mode Option -->
+                <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                    <p>Just want to try it out?</p>
+                    <button id="demo-mode-btn" class="btn btn-secondary">Enter Demo Mode</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="hidden">
+            <div class="dashboard-header">
+                <h2>My Datasets</h2>
+                <div>
+                    <button id="new-upload-btn" class="btn btn-primary">
+                        <span class="btn-icon">📤</span>
+                        Upload New Dataset
+                    </button>
+                    <button id="import-url-btn" class="btn btn-secondary" style="margin-left: 0.5rem;">
+                        <span class="btn-icon">🔗</span>
+                        Import URL
+                    </button>
+                </div>
+            </div>
+            
+            <div id="bulk-action-bar" class="bulk-action-bar hidden">
+                <span class="bulk-action-text">3 datasets selected</span>
+                <div class="bulk-action-buttons">
+                    <button id="bulk-compare-btn" class="btn btn-secondary btn-small">Compare</button>
+                    <button id="bulk-export-btn" class="btn btn-secondary btn-small">Export</button>
+                    <button id="bulk-delete-btn" class="btn btn-secondary btn-small">Delete</button>
+                    <button id="bulk-cancel-btn" class="btn btn-text btn-small">Cancel</button>
+                </div>
+            </div>
+            
+            <div class="search-filter">
+                <div class="search-input">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-datasets" placeholder="Search datasets...">
+                </div>
+                <select id="filter-datasets" class="filter-dropdown">
+                    <option value="all">All Types</option>
+                    <option value="text">Text</option>
+                    <option value="csv">CSV</option>
+                    <option value="json">JSON</option>
+                </select>
+                <select id="sort-datasets" class="filter-dropdown">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="size">Size (Largest)</option>
+                </select>
+            </div>
+
+            <div class="card">
+                <div id="datasets-list">
+                    <!-- Datasets will be loaded here -->
+                </div>
+                <div id="empty-state" class="empty-state hidden">
+                    <div class="empty-state-icon">📁</div>
+                    <h3>No datasets yet</h3>
+                    <p>Upload your first dataset to start analyzing academic data</p>
+                    <button id="first-upload-btn" class="btn btn-primary">Upload Dataset</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upload Section -->
+        <section id="upload-section" class="hidden">
+            <h2>Upload Dataset</h2>
+            
+            <div class="upload-steps">
+                <div class="upload-step active" data-step="info">
+                    <div class="step-number">1</div>
+                    <span>Information</span>
+                </div>
+                <div class="upload-step" data-step="file">
+                    <div class="step-number">2</div>
+                    <span>Upload File</span>
+                </div>
+                <div class="upload-step" data-step="analyze">
+                    <div class="step-number">3</div>
+                    <span>Analysis</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <!-- Step 1: Dataset Information -->
+                <div id="info-step">
+                    <div class="form-group">
+                        <label for="dataset-name">Dataset Name</label>
+                        <input type="text" id="dataset-name" placeholder="Enter a name for your dataset">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="dataset-description">Description (optional)</label>
+                        <textarea id="dataset-description" rows="3" placeholder="Provide a brief description of your dataset"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Dataset Type</label>
+                        <div style="display: flex; gap: 1rem;">
+                            <label style="display: flex; align-items: center;">
+                                <input type="radio" name="dataset-type" value="text" checked>
+                                <span style="margin-left: 0.5rem;">Text</span>
+                            </label>
+                            <label style="display: flex; align-items: center;">
+                                <input type="radio" name="dataset-type" value="csv">
+                                <span style="margin-left: 0.5rem;">CSV</span>
+                            </label>
+                            <label style="display: flex; align-items: center;">
+                                <input type="radio" name="dataset-type" value="json">
+                                <span style="margin-left: 0.5rem;">JSON</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tags (optional)</label>
+                        <div id="tags-input" class="tags-input-container">
+                            <input type="text" class="tags-input" placeholder="Add tags (press Enter)">
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button id="info-back-btn" class="btn btn-secondary">Cancel</button>
+                        <button id="info-next-btn" class="btn btn-primary">Next</button>
+                    </div>
+                </div>
+                
+                <!-- Step 2: File Upload -->
+                <div id="file-step" class="hidden">
+                    <div id="drop-zone" class="drop-zone">
+                        <div class="drop-zone-icon">📄</div>
+                        <p>Drag and drop your file here or click to browse</p>
+                        <p style="font-size: 0.875rem; color: var(--light-text); margin-top: 0.5rem;">
+                            Supported formats: .txt, .csv, .json (Max: 5MB)
+                        </p>
+                        <input type="file" id="file-input" accept=".txt,.csv,.json" hidden>
+                    </div>
+                    
+                    <div id="file-preview" class="file-preview hidden">
+                        <div class="file-info">
+                            <div class="file-icon">📄</div>
+                            <div>
+                                <div id="file-name" class="file-name">filename.txt</div>
+                                <div id="file-size" class="file-size">0 KB</div>
+                            </div>
+                        </div>
+                        <button id="remove-file-btn" class="btn btn-secondary btn-small">Remove</button>
+                    </div>
+                    
+                    <!-- Text preprocessing options -->
+                    <div class="form-group">
+                        <label>Text Preprocessing Options</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem;">
+                            <label style="display: flex; align-items: center;">
+                                <input type="checkbox" id="preprocess-lowercase" checked>
+                                <span style="margin-left: 0.5rem;">Convert to lowercase</span>
+                            </label>
+                            <label style="display: flex; align-items: center;">
+                                <input type="checkbox" id="preprocess-remove-stopwords">
+                                <span style="margin-left: 0.5rem;">Remove stopwords</span>
+                            </label>
+                            <label style="display: flex; align-items: center;">
+                                <input type="checkbox" id="preprocess-remove-special">
+                                <span style="margin-left: 0.5rem;">Remove special characters</span>
+                            </label>
+                            <label style="display: flex; align-items: center;">
+                                <input type="checkbox" id="preprocess-stemming">
+                                <span style="margin-left: 0.5rem;">Apply stemming</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button id="file-back-btn" class="btn btn-secondary">Back</button>
+                        <button id="file-next-btn" class="btn btn-primary" disabled>Analyze</button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Analysis -->
+                <div id="analyze-step" class="hidden">
+                    <div id="loading-view">
+                        <p id="loading-message" class="loading-message">Loading AI model...</p>
+                        <div class="spinner"></div>
+                        <div class="progress-container">
+                            <div id="analysis-progress" class="progress-bar"></div>
+                        </div>
+                        <p style="text-align: center; color: var(--light-text); margin-top: 1rem;">
+                            Analysis is performed directly in your browser using a compact AI model.
+                        </p>
+                    </div>
+                    
+                    <div id="results-view" class="hidden">
+                        <div class="results-tabs">
+                            <button class="results-tab active" data-tab="summary">Summary</button>
+                            <button class="results-tab" data-tab="sentiment">Sentiment</button>
+                            <button class="results-tab" data-tab="keywords">Keywords</button>
+                            <button class="results-tab" data-tab="entities">Entities</button>
+                            <button class="results-tab" data-tab="statistics">Statistics</button>
+                            <button class="results-tab" data-tab="advanced">Advanced</button>
+                        </div>
+                        
+                        <div id="summary-tab" class="result-section">
+                            <div class="stats-container">
+                                <div class="stat-card">
+                                    <h3>Document Length</h3>
+                                    <p id="doc-length">0 characters</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Word Count</h3>
+                                    <p id="word-count">0 words</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Average Sentiment</h3>
+                                    <p id="avg-sentiment">Neutral</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Reading Time</h3>
+                                    <p id="reading-time">0 min</p>
+                                </div>
+                            </div>
+                            
+                            <h3>Text Preview</h3>
+                            <div id="text-preview" class="text-preview"></div>
+                        </div>
+                        
+                        <div id="sentiment-tab" class="result-section hidden">
+                            <h3>Sentiment Analysis</h3>
+                            <div class="vis-options">
+                                <div class="vis-option active" data-vis="bars">Bars</div>
+                                <div class="vis-option" data-vis="donut">Donut</div>
+                                <div class="vis-option" data-vis="radar">Radar</div>
+                            </div>
+                            
+                            <div class="stats-container">
+                                <div class="stat-card" style="border-left: 4px solid var(--success-color)">
+                                    <h3>Positive</h3>
+                                    <p id="positive-score">0%</p>
+                                </div>
+                                <div class="stat-card" style="border-left: 4px solid var(--warning-color)">
+                                    <h3>Neutral</h3>
+                                    <p id="neutral-score">0%</p>
+                                </div>
+                                <div class="stat-card" style="border-left: 4px solid var(--error-color)">
+                                    <h3>Negative</h3>
+                                    <p id="negative-score">0%</p>
+                                </div>
+                            </div>
+                            
+                            <div id="sentiment-bars" class="sentiment-bars"></div>
+                            
+                            <div class="chart-container">
+                                <canvas id="sentiment-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div id="keywords-tab" class="result-section hidden">
+                            <h3>Top Keywords</h3>
+                            <div class="vis-options">
+                                <div class="vis-option active" data-vis="cloud">Cloud</div>
+                                <div class="vis-option" data-vis="bar">Bar Chart</div>
+                                <div class="vis-option" data-vis="table">Table</div>
+                            </div>
+                            
+                            <div id="keywords-cloud" class="keywords-cloud"></div>
+                            
+                            <div id="keywords-chart-container" class="chart-container hidden">
+                                <canvas id="keywords-chart"></canvas>
+                            </div>
+                            
+                            <div id="keywords-table-container" class="table-container hidden">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Keyword</th>
+                                            <th>Frequency</th>
+                                            <th>Relevance Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="keywords-table">
+                                        <!-- Keywords will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div id="entities-tab" class="result-section hidden">
+                            <h3>Named Entities</h3>
+                            <div class="stats-container">
+                                <div class="stat-card">
+                                    <h3>People</h3>
+                                    <p id="people-count">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Organizations</h3>
+                                    <p id="org-count">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Locations</h3>
+                                    <p id="loc-count">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Dates</h3>
+                                    <p id="date-count">0</p>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-container">
+                                <canvas id="entities-chart"></canvas>
+                            </div>
+                            
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Entity</th>
+                                            <th>Type</th>
+                                            <th>Occurrences</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="entities-table">
+                                        <!-- Entities will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div id="statistics-tab" class="result-section hidden">
+                            <h3>Text Statistics</h3>
+                            <div class="stats-container">
+                                <div class="stat-card">
+                                    <h3>Paragraphs</h3>
+                                    <p id="paragraph-count">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Sentences</h3>
+                                    <p id="sentence-count">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Avg Words/Sentence</h3>
+                                    <p id="avg-words-sentence">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Readability Score</h3>
+                                    <p id="readability-score">0</p>
+                                </div>
+                            </div>
+                            
+                            <h3>Word Length Distribution</h3>
+                            <div class="chart-container">
+                                <canvas id="word-length-chart"></canvas>
+                            </div>
+                            
+                            <h3>Most Common Words</h3>
+                            <div class="chart-container">
+                                <canvas id="common-words-chart"></canvas>
+                            </div>
+                        
