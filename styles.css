@@ -1,0 +1,45 @@
+/* Base styles */
+:root {
+    --primary-color: #4285f4;
+    --text-color: #202124;
+    /* Other CSS variables */
+}
+
+/* Layout and common elements */
+body, html {
+    /* Common styles */
+}
+
+/* Section visibility controls */
+.app-section {
+    display: block;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Login section styles */
+#loginSection {
+    /* Login-specific styles */
+}
+
+/* Dashboard section styles */
+#dashboardSection {
+    /* Dashboard-specific styles */
+}
+
+/* Upload section styles */
+#uploadSection {
+    /* Upload-specific styles */
+}
+
+/* Analysis section styles */
+#analysisSection {
+    /* Analysis-specific styles */
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    /* Mobile-specific styles */
+}
